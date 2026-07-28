@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BIOL 40B — Practical 2: Cram Trainer</title>
+    <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+    <header>
+        <h1>BIOL 40B — Practical 2 <span class="sub">cram trainer</span></h1>
+        <div class="header-controls">
+            <div class="mode-toggle">
+                <button id="btn-mode-build" class="mode-btn active" type="button">Build</button>
+                <button id="btn-mode-list" class="mode-btn" type="button">Checklist</button>
+                <button id="btn-mode-cram" class="mode-btn" type="button">Cram</button>
+                <button id="btn-mode-test" class="mode-btn" type="button">Test</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ═══════════════ BUILD ═══════════════ -->
+    <div id="view-build">
+        <div class="pending-bar" id="pending-bar" hidden>
+            <span>Place <b id="pending-name"></b> — tap its location on the slide</span>
+            <button class="mini-btn" type="button" id="btn-pending-cancel">Cancel</button>
+        </div>
+        <nav class="image-tabs" id="slide-tabs"></nav>
+
+        <main>
+            <div class="workspace">
+              <div class="viewport-slot">
+                <div class="image-viewport" id="image-viewport">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" type="button" id="btn-zoom-in" title="Zoom in">+</button>
+                        <span class="zoom-level" id="zoom-level">100%</span>
+                        <button class="zoom-btn" type="button" id="btn-zoom-out" title="Zoom out">&minus;</button>
+                        <button class="zoom-btn zoom-fit" type="button" id="btn-zoom-fit" title="Fit to view">Fit</button>
+                    </div>
+                    <div class="image-container" id="image-container">
+                        <img id="main-image" src="" alt="Lab slide" draggable="false">
+                        <svg id="lines-layer" xmlns="http://www.w3.org/2000/svg"></svg>
+                        <div id="markers-layer"></div>
+                    </div>
+                </div>
+              </div>
+
+                <div class="sidebar">
+                    <div class="instructions">
+                        <h3>Build mode</h3>
+                        <p><b>Tap the image</b> to drop a pin, then type what it is.
+                           Drag a pin to nudge it, tap the pin to rename, <b>&times;</b> to delete.
+                           Everything saves as you go.</p>
+                        <p><b>Drag a label</b> out to a clear spot — a dotted line keeps it
+                           tied to its pin. Drop it back on the pin to let it sit there again.</p>
+                        <p class="tip">Accept more than one wording by separating with a
+                           slash — <i>Bicuspid valve / Mitral valve</i>. Anything in
+                           (parentheses) is optional when you answer.</p>
+                    </div>
+
+                    <div class="slide-meta">
+                        <label for="slide-title-input">Slide name</label>
+                        <input type="text" id="slide-title-input" autocomplete="off" spellcheck="false">
+                        <p class="hint" id="slide-hint"></p>
+                    </div>
+
+                    <div class="pin-panel">
+                        <h3>Pins on this slide <span class="count" id="pin-count">0</span></h3>
+                        <div id="pin-list"></div>
+                        <p class="empty-note" id="pin-empty">No pins yet — tap the image to place one.</p>
+                    </div>
+
+                    <div class="word-bank">
+                        <h3>Required terms
+                            <span class="count" id="bank-count">0/0</span>
+                        </h3>
+                        <input type="search" id="bank-search" placeholder="search the objectives…"
+                               autocomplete="off" spellcheck="false">
+                        <label class="bank-filter">
+                            <input type="checkbox" id="bank-missing-only" checked>
+                            <span>only what I haven't pinned</span>
+                        </label>
+                        <div id="bank-list"></div>
+                        <p class="bank-note">Tap a term to arm it, then tap its spot on the
+                           image — it gets the professor's exact spelling.</p>
+                    </div>
+
+                    <div class="actions">
+                        <button class="action-btn submit-btn" type="button" id="btn-goto-test">Test me on these &rarr;</button>
+                        <button class="action-btn reset-btn" type="button" id="btn-clear-slide">Clear this slide</button>
+                        <button class="action-btn data-btn" type="button" id="btn-export">Export pin set</button>
+                        <button class="action-btn data-btn" type="button" id="btn-import-click">Import pin set</button>
+                        <input type="file" id="import-file" accept="application/json,.json" hidden>
+                        <button class="action-btn danger-btn" type="button" id="btn-reset-all">Reset everything</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════ CHECKLIST ═══════════════ -->
+    <div id="view-checklist" hidden>
+        <main>
+            <div class="panel checklist-panel">
+                <h2>Professor's checklist</h2>
+                <p class="lede">Every structure on the Lab Exam 2 objectives handout,
+                   and whether you have a pin for it anywhere.</p>
+
+                <div class="cov-summary" id="cov-summary"></div>
+
+                <div class="fixups" id="fixups" hidden>
+                    <h3>Labels that aren't on the handout <span class="frac none" id="fixup-count"></span></h3>
+                    <p class="fixup-lede">Your labels are the answer key, so a misspelt one
+                       marks the right answer wrong. Accept a fix, or keep yours if it's a
+                       structure he didn't list.</p>
+                    <div id="fixup-list"></div>
+                </div>
+
+                <div id="checklist-groups"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════ CRAM ═══════════════ -->
+    <div id="view-cram" hidden>
+        <main>
+            <div class="panel cram-panel">
+                <div class="cram-head">
+                    <div>
+                        <h2>Cram mode</h2>
+                        <p class="lede">Short on time? Study in this order.</p>
+                    </div>
+                    <button class="mini-btn why" type="button" id="btn-why-cram">Why this order?</button>
+                </div>
+
+                <div class="cram-stats" id="cram-stats"></div>
+
+                <div class="cram-block">
+                    <h3>Do these first <span class="sub" id="cram-first-sub"></span></h3>
+                    <div id="cram-first" class="cram-list"></div>
+                </div>
+                <div class="cram-block">
+                    <h3>Then these</h3>
+                    <div id="cram-then" class="cram-list"></div>
+                </div>
+                <details class="cram-rest">
+                    <summary>Everything else, still ranked</summary>
+                    <div id="cram-rest" class="cram-list"></div>
+                </details>
+            </div>
+        </main>
+    </div>
+
+    <!-- explainer -->
+    <div class="modal-backdrop" id="cram-modal" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cram-modal-title">
+            <h3 id="cram-modal-title">How this order is worked out</h3>
+
+            <p>With one night left, the useful question isn't <i>what's on the
+               list</i> — it's <b>what earns the most marks per minute</b>. Every
+               structure gets a score:</p>
+
+            <p class="formula">marks at risk = chance it gets tagged × chance you'd miss it right now</p>
+
+            <p><b>Chance it gets tagged</b> is my estimate, shown as a tier.
+               <span class="flag a">A</span> expect it,
+               <span class="flag b">B</span> likely,
+               <span class="flag c">C</span> plausible, and unflagged terms still
+               carry a baseline. I based this on what a pointer can rest on
+               unambiguously, what the objectives sheet also ties to a function or
+               to the oxygenated/deoxygenated question, and the fact that
+               left/right and superior/middle/inferior pairs are perennial tags.</p>
+
+            <p><b>Chance you'd miss it</b> comes from your own pins. A structure
+               you've never located anywhere is one you can't answer at all, so it
+               scores far higher than one you've already handled.</p>
+
+            <p><b>Near-twins get a boost.</b> Superior vs inferior vena cava,
+               epicardium vs endocardium, epiglottis vs glottis — pairs like these
+               are where practical marks actually leak, so anything with a
+               look-alike is pushed up the list.</p>
+
+            <p class="warn"><b>This is a prediction, not inside information.</b>
+               I did not write your exam and I have not seen it. A low tier means
+               "less probable than the others", never "safe to skip". If your
+               professor stressed something in lab, trust that over this.</p>
+
+            <button class="action-btn submit-btn" type="button" id="btn-close-cram-modal">Got it</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════ TEST — SETUP ═══════════════ -->
+    <div id="view-setup" hidden>
+        <main>
+            <div class="panel setup-panel">
+                <h2>Set up your test</h2>
+                <p class="lede">You'll see one pin at a time and type what it is —
+                   same as the real practical.</p>
+
+                <div class="setup-block">
+                    <div class="setup-head">
+                        <h3>Slides</h3>
+                        <div class="mini-actions">
+                            <button class="mini-btn" type="button" id="btn-select-all">All</button>
+                            <button class="mini-btn" type="button" id="btn-select-none">None</button>
+                        </div>
+                    </div>
+                    <div id="setup-slide-list" class="slide-checklist"></div>
+                    <p class="empty-note" id="setup-empty" hidden>
+                        No pins anywhere yet. Go back to Build mode and place some first.
+                    </p>
+                </div>
+
+                <div class="setup-block">
+                    <h3>Options</h3>
+                    <label class="opt">
+                        <input type="checkbox" id="opt-timed" checked>
+                        <span><b>Timed</b> — <span id="timed-desc">2:00 per slide</span>, then it moves on</span>
+                    </label>
+                    <div class="opt-sub" id="timer-row">
+                        <label for="opt-seconds">Seconds per slide</label>
+                        <input type="number" id="opt-seconds" min="15" max="900" step="15" value="120">
+                    </div>
+                    <label class="opt">
+                        <input type="checkbox" id="opt-shuffle" checked>
+                        <span><b>Shuffle</b> — random slide order, random pin order</span>
+                    </label>
+                    <label class="opt">
+                        <input type="checkbox" id="opt-show-others">
+                        <span><b>Show the other pins</b> dimmed for context</span>
+                    </label>
+                    <label class="opt">
+                        <input type="checkbox" id="opt-strict">
+                        <span><b>Strict spelling</b> — no typo forgiveness</span>
+                    </label>
+                </div>
+
+                <div class="setup-footer">
+                    <p class="tally" id="setup-tally"></p>
+                    <button class="action-btn submit-btn big" type="button" id="btn-start">Start test</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════ TEST — RUNNER ═══════════════ -->
+    <div id="view-run" hidden>
+        <div class="run-bar">
+            <div class="run-left">
+                <span class="run-progress" id="run-progress"></span>
+                <span class="run-slide" id="run-slide-name"></span>
+            </div>
+            <div class="run-right">
+                <span class="run-clock" id="run-clock" hidden>2:00</span>
+                <button class="mini-btn quit" type="button" id="btn-quit">End test</button>
+            </div>
+        </div>
+        <div class="timer-track" id="timer-track" hidden><div class="timer-fill" id="timer-fill"></div></div>
+
+        <main>
+            <div class="run-layout">
+                <div class="viewport-slot">
+                    <div class="image-viewport run-viewport" id="run-viewport">
+                        <div class="image-container" id="run-container">
+                            <img id="run-image" src="" alt="Slide" draggable="false">
+                            <div id="run-markers"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <form class="answer-bar" id="answer-form" autocomplete="off">
+                    <label for="answer-input" id="answer-prompt">What is the highlighted structure?</label>
+                    <div class="answer-row">
+                        <input type="text" id="answer-input" autocomplete="off" autocapitalize="off"
+                               autocorrect="off" spellcheck="false" placeholder="type your answer">
+                        <button class="action-btn submit-btn" type="submit" id="btn-answer">Submit</button>
+                    </div>
+                    <div class="feedback" id="feedback" hidden></div>
+                    <button class="mini-btn skip" type="button" id="btn-skip">Don't know — skip</button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════ TEST — RESULTS ═══════════════ -->
+    <div id="view-results" hidden>
+        <main>
+            <div class="panel results-panel">
+                <h2>Results</h2>
+                <div class="score" id="result-score"></div>
+                <p class="score-detail" id="result-detail"></p>
+                <div id="result-breakdown"></div>
+                <div class="actions results-actions">
+                    <button class="action-btn submit-btn" type="button" id="btn-retry-missed">Retry the ones I missed</button>
+                    <button class="action-btn save-btn" type="button" id="btn-retry-all">Run the whole test again</button>
+                    <button class="action-btn reset-btn" type="button" id="btn-back-build">Back to Build</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="credits">
+        <p>A free study aid for BIOL&nbsp;40B. The bench photos are the author's own
+           lab images; pins and answers are whatever you type in. Nothing leaves
+           your browser.</p>
+        <details id="credits-panel">
+            <summary>Borrowed image credits &amp; licensing</summary>
+            <div id="credits-list"></div>
+        </details>
+    </footer>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="slides.js?v=1"></script>
+    <script src="donor.js?v=1"></script>
+    <script src="sourced.js?v=1"></script>
+    <script src="objectives.js?v=1"></script>
+    <script src="likelihood.js?v=1"></script>
+    <script src="preset.js?v=1"></script>
+    <script src="app.js?v=6"></script>
+</body>
+</html>
