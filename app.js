@@ -1067,7 +1067,10 @@ function renderFixups() {
             selectedPinId = r.pinId;
             renderPins();
             showView('build');
-            openEditor(r.pinId);
+            // Deferred by a tick on purpose: focus lands on this button after
+            // the click handler returns, which would blur the editor we just
+            // opened and its blur handler would close it again.
+            setTimeout(function () { openEditor(r.pinId); }, 0);
         });
         act.appendChild(go);
 
