@@ -25,6 +25,10 @@ What you can use it for:
   Placing it yourself is the part that actually sticks
 • **Practice the real thing** — one pin lights up, you type what it is,
   2 minutes per slide, then it shows you what you missed
+• **Know what everything does** — a multiple-choice quiz on function, one
+  question for every structure on the handout (122 of them). The wrong
+  answers are the real jobs of the structures people mix it up with, so
+  "close enough" doesn't survive it
 • **Stop losing dumb marks** — it won't let "inferior vena cava" slide as
   "superior vena cava", and it fixes your spelling against his wording
 • **Split the work** — Export your pins, send the file, others Import it

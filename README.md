@@ -112,6 +112,32 @@ wordiest answer teaches nothing.
 marked wrong, never treated as a typo. Turn on Strict spelling to require
 exact answers.
 
+## On a phone
+
+Everything is keyed on capability, not on user-agent strings — `max-width` for
+the layout, and `(hover: none) and (pointer: coarse)` for "this is a finger",
+which is also true of a Surface in tablet mode and false again the moment a
+keyboard is attached. `isTouchOnly()` in `app.js` reads the same query.
+
+- Under 600px the five mode buttons become a six-column grid: three on the top
+  row, two splitting the second. Five buttons in one row came to 454px against
+  a 375px phone, which panned the whole page sideways and pushed **Test** off
+  the screen.
+- In the quiz, four options fill a phone, so `.fn-answerbar` (the feedback plus
+  **Next**) pins itself to the bottom of the screen once you answer, and
+  `reserveRoomForAnswerBar()` pads the panel by the bar's *measured* height —
+  it changes with the length of the explanation, and a fixed guess either
+  traps the last option underneath or leaves a dead gap.
+- Next is not auto-focused on a touch device: focusing it scrolls a phone to
+  the bottom of the page and undoes the pinning.
+- Every text field is forced to 16px under 640px, or iOS Safari zooms the page
+  when the field takes focus and leaves it there. **Name the fields
+  explicitly** — a bare `input[type="text"]` selector loses to the class rules
+  above it, which silently left two fields at 13px the first time.
+
+Anything changed in `styles.css` or `app.js` needs its `?v=` bumped in
+`index.html`, or Pages serves the cached copy.
+
 ## Sharing a pin set
 
 - **Export pin set** downloads a JSON file — import it on another device or
