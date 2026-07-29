@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BIOL 40B — Practical 2: Cram Trainer</title>
-    <link rel="stylesheet" href="styles.css?v=4">
+    <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
     <header>
@@ -14,6 +14,7 @@
                 <button id="btn-mode-build" class="mode-btn active" type="button">Build</button>
                 <button id="btn-mode-list" class="mode-btn" type="button">Checklist</button>
                 <button id="btn-mode-cram" class="mode-btn" type="button">Cram</button>
+                <button id="btn-mode-fn" class="mode-btn" type="button">Functions</button>
                 <button id="btn-mode-test" class="mode-btn" type="button">Test</button>
             </div>
         </div>
@@ -189,6 +190,95 @@
         </div>
     </div>
 
+    <!-- ═══════════════ FUNCTIONS — SETUP ═══════════════ -->
+    <div id="view-fnsetup" hidden>
+        <main>
+            <div class="panel setup-panel">
+                <h2>Function quiz</h2>
+                <p class="lede">The practical asks you to name it. The rest of the exam asks
+                   what it <i>does</i> — multiple choice, one question for every structure on
+                   the objectives handout.</p>
+
+                <div class="setup-block">
+                    <div class="setup-head">
+                        <h3>What to be asked about</h3>
+                        <div class="mini-actions">
+                            <button class="mini-btn" type="button" id="btn-fn-all">All</button>
+                            <button class="mini-btn" type="button" id="btn-fn-none">None</button>
+                        </div>
+                    </div>
+                    <div id="fn-group-list" class="slide-checklist"></div>
+                </div>
+
+                <div class="setup-block">
+                    <h3>Options</h3>
+                    <label class="opt">
+                        <input type="checkbox" id="fn-opt-shuffle" checked>
+                        <span><b>Shuffle</b> — random question order (the four answers are
+                              always shuffled)</span>
+                    </label>
+                    <label class="opt">
+                        <input type="checkbox" id="fn-opt-explain" checked>
+                        <span><b>Explain as I go</b> — show why after each answer, instead of
+                              only at the end</span>
+                    </label>
+                </div>
+
+                <div class="setup-footer">
+                    <p class="tally" id="fn-tally"></p>
+                    <div class="fn-start-actions">
+                        <button class="action-btn save-btn" type="button" id="btn-fn-drill" hidden></button>
+                        <button class="action-btn submit-btn big" type="button" id="btn-fn-start">Start quiz</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════ FUNCTIONS — RUNNER ═══════════════ -->
+    <div id="view-fnrun" hidden>
+        <div class="run-bar">
+            <div class="run-left">
+                <span class="run-progress" id="fn-progress"></span>
+                <span class="run-slide" id="fn-group-name"></span>
+            </div>
+            <div class="run-right">
+                <span class="fn-tally-live" id="fn-live-score"></span>
+                <button class="mini-btn quit" type="button" id="btn-fn-quit">End quiz</button>
+            </div>
+        </div>
+
+        <main>
+            <div class="panel fn-panel">
+                <p class="fn-question" id="fn-question"></p>
+                <div class="fn-options" id="fn-options"></div>
+                <div class="feedback" id="fn-feedback" hidden></div>
+                <div class="fn-nav">
+                    <button class="action-btn submit-btn" type="button" id="btn-fn-next" hidden>Next</button>
+                    <button class="mini-btn skip" type="button" id="btn-fn-skip">Don't know — skip</button>
+                </div>
+                <p class="fn-hint">Tap an answer, or press <b>1</b>–<b>4</b>. <b>Enter</b> moves on.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════ FUNCTIONS — RESULTS ═══════════════ -->
+    <div id="view-fnresults" hidden>
+        <main>
+            <div class="panel results-panel">
+                <h2>Function quiz results</h2>
+                <div class="score" id="fn-score"></div>
+                <p class="score-detail" id="fn-score-detail"></p>
+                <div id="fn-review"></div>
+                <div class="actions results-actions">
+                    <button class="action-btn submit-btn" type="button" id="btn-fn-retry-missed">Retry the ones I missed</button>
+                    <button class="action-btn save-btn" type="button" id="btn-fn-retry-all">Run the whole quiz again</button>
+                    <button class="action-btn reset-btn" type="button" id="btn-fn-back">Back to the setup</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <!-- ═══════════════ TEST — SETUP ═══════════════ -->
     <div id="view-setup" hidden>
         <main>
@@ -315,8 +405,9 @@
     <script src="donor.js?v=1"></script>
     <script src="sourced.js?v=1"></script>
     <script src="objectives.js?v=1"></script>
+    <script src="functions.js?v=1"></script>
     <script src="likelihood.js?v=1"></script>
     <script src="preset.js?v=1"></script>
-    <script src="app.js?v=7"></script>
+    <script src="app.js?v=8"></script>
 </body>
 </html>

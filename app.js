@@ -497,6 +497,57 @@ function countQuestions(blocks) {
     return blocks.reduce(function (n, b) { return n + b.pinIds.length; }, 0);
 }
 
+/* ---- function quiz ----
+   Naming a pinned structure is half of the objectives sheet; the other half
+   asks what it does. These build that quiz out of functions.js.
+
+     groupIds  objectives groups to draw from, in handout order
+     opts      { shuffle, rand }
+     only      optional Set of term names (retry the ones you missed)
+
+   Each question carries its four options pre-shuffled, one flagged correct,
+   so the renderer never has to know which is which. */
+function buildFunctionQueue(groupIds, opts, only) {
+    const seen = new Set();
+    const queue = [];
+
+    (groupIds || []).forEach(function (gid) {
+        functionItemsForGroup(gid).forEach(function (item) {
+            if (seen.has(item.term)) return;              // shared terms once
+            if (only && !only.has(item.term)) return;
+            seen.add(item.term);
+            queue.push({
+                term: item.term,
+                group: gid,
+                item: item,
+                prompt: item.ask || ('What is the function of ' + lowerFirstWord(item.term) + '?'),
+                options: [{ text: item.fn, correct: true }].concat(
+                    item.wrong.map(function (w) { return { text: w, correct: false }; }))
+            });
+        });
+    });
+
+    if (opts && opts.shuffle) shuffleInPlace(queue, opts.rand);
+    /* Options are always shuffled — a fixed answer slot would be a giveaway
+       whether or not you asked for a shuffled question order. */
+    queue.forEach(function (q) { shuffleInPlace(q.options, opts && opts.rand); });
+    return queue;
+}
+
+/* "Right atrium" -> "the right atrium", but "Cilia" -> "cilia" and an
+   abbreviation like "R & L pulmonary veins" is left alone. */
+function lowerFirstWord(term) {
+    const s = String(term || '');
+    if (/^[A-Z][a-z]/.test(s)) return 'the ' + s.charAt(0).toLowerCase() + s.slice(1);
+    return 'the ' + s;
+}
+
+function scoreFunctionRun(results) {
+    const total = results.length;
+    const right = results.filter(function (r) { return r.correct; }).length;
+    return { right: right, total: total, pct: total ? Math.round(right / total * 100) : 0 };
+}
+
 /* Where a leader line should meet a label box: walk from the label's centre
    toward the pin and stop at the box edge, so the dotted line touches the
    label rather than disappearing under it.
@@ -547,7 +598,9 @@ const LOGIC = {
     cramRanking: cramRanking,
     cramCoverageCurve: cramCoverageCurve,
     formatClock: formatClock,
-    shuffleInPlace: shuffleInPlace
+    shuffleInPlace: shuffleInPlace,
+    buildFunctionQueue: buildFunctionQueue,
+    scoreFunctionRun: scoreFunctionRun
 };
 
 global.P2_LOGIC = LOGIC;
@@ -570,6 +623,8 @@ const NS = 'bio40b_p2cram_';
 const K_PINS = NS + 'pins';
 const K_TITLES = NS + 'titles';
 const K_SETTINGS = NS + 'settings';
+const K_FN_SETTINGS = NS + 'fnsettings';
+const K_FN_MISSED = NS + 'fnmissed';
 
 let pinsBySlide = {};
 let titleOverrides = {};
@@ -681,6 +736,7 @@ function loadState() {
         ? readJSON(K_TITLES, {})
         : Object.assign({}, PRESET_TITLES);
     settings = Object.assign(settings, readJSON(K_SETTINGS, {}));
+    loadFnState();
 
     // Keep the id counter clear of anything already stored.
     Object.keys(pinsBySlide).forEach(function (s) {
@@ -764,11 +820,14 @@ function toast(msg, kind, action) {
 }
 
 function showView(name) {
-    ['view-build', 'view-checklist', 'view-cram', 'view-setup', 'view-run', 'view-results']
+    ['view-build', 'view-checklist', 'view-cram', 'view-fnsetup', 'view-fnrun',
+     'view-fnresults', 'view-setup', 'view-run', 'view-results']
         .forEach(function (id) { $(id).hidden = (id !== 'view-' + name); });
     $('btn-mode-build').classList.toggle('active', name === 'build');
     $('btn-mode-list').classList.toggle('active', name === 'checklist');
     $('btn-mode-cram').classList.toggle('active', name === 'cram');
+    $('btn-mode-fn').classList.toggle('active',
+        name === 'fnsetup' || name === 'fnrun' || name === 'fnresults');
     $('btn-mode-test').classList.toggle('active',
         name === 'setup' || name === 'run' || name === 'results');
     window.scrollTo(0, 0);
@@ -1738,9 +1797,14 @@ function resetEverything() {
         localStorage.removeItem(K_PINS);
         localStorage.removeItem(K_TITLES);
         localStorage.removeItem(K_SETTINGS);
+        localStorage.removeItem(K_FN_SETTINGS);
+        localStorage.removeItem(K_FN_MISSED);
     } catch (e) { /* ignore */ }
     pinsBySlide = sanitizePins(Object.assign({}, PRESET_PINS));
     titleOverrides = Object.assign({}, PRESET_TITLES);
+    fnSettings = { groups: null, shuffle: true, explain: true };
+    fnMissed = {};
+    fnRun = null;
     selectedPinId = null;
     pendingTerm = null;
     closeEditor();
@@ -2200,6 +2264,357 @@ function retryMissed() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   4b. FUNCTION QUIZ
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Which groups you last picked, and which terms keep catching you out. The
+   miss counts are the useful half: they drive "drill what I keep missing",
+   which is the whole reason to keep a history at all. */
+let fnSettings = { groups: null, shuffle: true, explain: true };   // null = all
+let fnMissed = {};
+let fnRun = null;
+
+function loadFnState() {
+    fnSettings = Object.assign(fnSettings, readJSON(K_FN_SETTINGS, {}));
+    fnMissed = readJSON(K_FN_MISSED, {});
+}
+
+function saveFnSettings() { writeJSON(K_FN_SETTINGS, fnSettings); }
+function saveFnMissed() { writeJSON(K_FN_MISSED, fnMissed); }
+
+function fnAllGroupIds() {
+    return OBJECTIVE_GROUPS.map(function (g) { return g.id; });
+}
+
+function fnSelectedGroups() {
+    if (!fnSettings.groups) return fnAllGroupIds();
+    const live = new Set(fnAllGroupIds());
+    return fnSettings.groups.filter(function (id) { return live.has(id); });
+}
+
+function fnMissedTerms() {
+    return Object.keys(fnMissed).filter(function (t) {
+        return fnMissed[t] > 0 && FUNCTION_BY_TERM[t];
+    });
+}
+
+function renderFnSetup() {
+    const box = $('fn-group-list');
+    const chosen = new Set(fnSelectedGroups());
+    box.textContent = '';
+
+    let lastKind = null;
+    OBJECTIVE_GROUPS.forEach(function (g) {
+        if (g.kind !== lastKind) {
+            const head = document.createElement('p');
+            head.className = 'fn-kind-head';
+            head.textContent = g.kind === 'histology' ? 'Microscope slides' : 'Lab models';
+            box.appendChild(head);
+            lastKind = g.kind;
+        }
+
+        const n = functionItemsForGroup(g.id).length;
+        const row = document.createElement('label');
+        row.className = 'slide-check';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = chosen.has(g.id);
+        cb.dataset.group = g.id;
+        cb.addEventListener('change', function () {
+            const now = new Set(fnSelectedGroups());
+            if (cb.checked) now.add(g.id); else now.delete(g.id);
+            fnSettings.groups = fnAllGroupIds().filter(function (id) { return now.has(id); });
+            saveFnSettings();
+            renderFnTally();
+        });
+
+        const name = document.createElement('span');
+        name.className = 'cname';
+        name.textContent = g.title + (g.slide ? ' (' + g.slide + ')' : '');
+
+        const count = document.createElement('span');
+        count.className = 'cpins';
+        count.textContent = n + (n === 1 ? ' question' : ' questions');
+
+        row.appendChild(cb);
+        row.appendChild(name);
+        row.appendChild(count);
+        box.appendChild(row);
+    });
+
+    $('fn-opt-shuffle').checked = !!fnSettings.shuffle;
+    $('fn-opt-explain').checked = !!fnSettings.explain;
+    renderFnTally();
+}
+
+function renderFnTally() {
+    const n = buildFunctionQueue(fnSelectedGroups(), { shuffle: false }).length;
+    $('fn-tally').textContent = n
+        ? n + (n === 1 ? ' question' : ' questions') + ' selected'
+        : 'Nothing selected — tick a group above.';
+    $('btn-fn-start').disabled = !n;
+
+    const missed = fnMissedTerms();
+    const drill = $('btn-fn-drill');
+    drill.hidden = missed.length === 0;
+    drill.textContent = 'Drill the ' + missed.length + ' I keep missing';
+}
+
+function startFnQuiz(onlyTerms) {
+    const groups = onlyTerms ? fnAllGroupIds() : fnSelectedGroups();
+    const queue = buildFunctionQueue(groups, { shuffle: !!fnSettings.shuffle }, onlyTerms);
+    if (!queue.length) {
+        toast('Nothing to ask — pick at least one group', 'error');
+        return;
+    }
+    fnRun = { queue: queue, i: 0, results: [], answered: false };
+    showView('fnrun');
+    renderFnQuestion();
+}
+
+function fnGroupTitle(id) {
+    const g = OBJECTIVE_GROUPS.find(function (x) { return x.id === id; });
+    return g ? g.title : '';
+}
+
+function renderFnQuestion() {
+    const q = fnRun.queue[fnRun.i];
+    fnRun.answered = false;
+
+    $('fn-progress').textContent = (fnRun.i + 1) + ' / ' + fnRun.queue.length;
+    $('fn-group-name').textContent = fnGroupTitle(q.group);
+    const right = fnRun.results.filter(function (r) { return r.correct; }).length;
+    $('fn-live-score').textContent = fnRun.results.length
+        ? right + ' right so far' : '';
+
+    $('fn-question').textContent = q.prompt;
+    $('fn-feedback').hidden = true;
+    $('fn-feedback').textContent = '';
+    $('btn-fn-next').hidden = true;
+    $('btn-fn-skip').hidden = false;
+
+    const box = $('fn-options');
+    box.textContent = '';
+    q.options.forEach(function (opt, idx) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'fn-option';
+        btn.dataset.idx = String(idx);
+
+        const key = document.createElement('span');
+        key.className = 'fn-key';
+        key.textContent = 'ABCD'.charAt(idx);
+
+        const text = document.createElement('span');
+        text.className = 'fn-text';
+        text.textContent = opt.text;
+
+        btn.appendChild(key);
+        btn.appendChild(text);
+        btn.addEventListener('click', function () { answerFn(idx); });
+        box.appendChild(btn);
+    });
+    window.scrollTo(0, 0);
+}
+
+function answerFn(idx) {
+    if (!fnRun || fnRun.answered) return;
+    const q = fnRun.queue[fnRun.i];
+    const picked = idx === null ? null : q.options[idx];
+    const correct = !!(picked && picked.correct);
+    fnRun.answered = true;
+
+    fnRun.results.push({
+        term: q.term, group: q.group, correct: correct,
+        picked: picked ? picked.text : null, item: q.item
+    });
+
+    /* The miss log is what "drill what I keep missing" runs on: a wrong or
+       skipped answer adds one, a right answer takes one off, so a term you
+       have since learned drops out on its own. */
+    if (correct) {
+        if (fnMissed[q.term]) {
+            fnMissed[q.term] -= 1;
+            if (fnMissed[q.term] <= 0) delete fnMissed[q.term];
+        }
+    } else {
+        fnMissed[q.term] = (fnMissed[q.term] || 0) + 1;
+    }
+    saveFnMissed();
+
+    Array.prototype.forEach.call($('fn-options').children, function (btn) {
+        const i = Number(btn.dataset.idx);
+        btn.disabled = true;
+        if (q.options[i].correct) btn.classList.add('is-right');
+        else if (i === idx) btn.classList.add('is-wrong');
+    });
+
+    const fb = $('fn-feedback');
+    fb.textContent = '';
+    fb.className = 'feedback ' + (correct ? 'right' : 'wrong');
+    fb.hidden = false;
+
+    const head = document.createElement('b');
+    head.textContent = correct ? 'Right.' : (picked ? 'Not quite.' : 'Skipped.');
+    fb.appendChild(head);
+
+    if (!correct) {
+        const ans = document.createElement('span');
+        ans.className = 'ans';
+        ans.textContent = q.item.fn;
+        fb.appendChild(ans);
+    }
+    if (fnSettings.explain && q.item.note) {
+        const note = document.createElement('span');
+        note.className = 'nudge';
+        note.textContent = q.item.note;
+        fb.appendChild(note);
+    }
+
+    $('btn-fn-skip').hidden = true;
+    const next = $('btn-fn-next');
+    next.hidden = false;
+    next.textContent = (fnRun.i + 1 >= fnRun.queue.length) ? 'See results' : 'Next';
+    next.focus();
+}
+
+function nextFnQuestion() {
+    if (!fnRun || !fnRun.answered) return;
+    fnRun.i += 1;
+    if (fnRun.i >= fnRun.queue.length) finishFnQuiz();
+    else renderFnQuestion();
+}
+
+function finishFnQuiz() {
+    const score = scoreFunctionRun(fnRun.results);
+    const el = $('fn-score');
+    el.textContent = score.right + ' / ' + score.total;
+    el.className = 'score ' + (score.pct === 100 ? 'perfect' : score.pct >= 70 ? 'good' : 'poor');
+    $('fn-score-detail').textContent = score.pct + '% — ' +
+        (score.pct === 100 ? 'every function on the handout, cold.'
+         : score.pct >= 70 ? 'solid. The misses below are the night\'s work.'
+         : 'worth another pass before the exam.');
+
+    const missed = fnRun.results.filter(function (r) { return !r.correct; });
+    const box = $('fn-review');
+    box.textContent = '';
+
+    if (!missed.length) {
+        const p = document.createElement('p');
+        p.className = 'empty-note';
+        p.textContent = 'Nothing missed — there is nothing to review.';
+        box.appendChild(p);
+    } else {
+        const h = document.createElement('h3');
+        h.className = 'fn-review-head';
+        h.textContent = 'What to go back over';
+        box.appendChild(h);
+
+        missed.forEach(function (r) {
+            const row = document.createElement('div');
+            row.className = 'fn-review-row';
+
+            const term = document.createElement('b');
+            term.textContent = r.term;
+            row.appendChild(term);
+
+            const fn = document.createElement('span');
+            fn.className = 'fn-review-fn';
+            fn.textContent = r.item.fn;
+            row.appendChild(fn);
+
+            if (r.picked) {
+                const yours = document.createElement('span');
+                yours.className = 'fn-review-yours';
+                yours.textContent = 'you picked: ' + r.picked;
+                row.appendChild(yours);
+            }
+            if (r.item.note) {
+                const note = document.createElement('span');
+                note.className = 'fn-review-note';
+                note.textContent = r.item.note;
+                row.appendChild(note);
+            }
+            box.appendChild(row);
+        });
+    }
+
+    $('btn-fn-retry-missed').hidden = !missed.length;
+    showView('fnresults');
+}
+
+function retryFnMissed() {
+    if (!fnRun) return;
+    const only = new Set(fnRun.results.filter(function (r) { return !r.correct; })
+                                      .map(function (r) { return r.term; }));
+    if (!only.size) return;
+    startFnQuiz(only);
+}
+
+function wireFunctionQuiz() {
+    $('btn-mode-fn').addEventListener('click', function () {
+        closeEditor(true);
+        stopTicker();
+        renderFnSetup();
+        showView('fnsetup');
+    });
+
+    $('btn-fn-all').addEventListener('click', function () {
+        fnSettings.groups = fnAllGroupIds();
+        saveFnSettings();
+        renderFnSetup();
+    });
+    $('btn-fn-none').addEventListener('click', function () {
+        fnSettings.groups = [];
+        saveFnSettings();
+        renderFnSetup();
+    });
+    $('fn-opt-shuffle').addEventListener('change', function () {
+        fnSettings.shuffle = $('fn-opt-shuffle').checked;
+        saveFnSettings();
+    });
+    $('fn-opt-explain').addEventListener('change', function () {
+        fnSettings.explain = $('fn-opt-explain').checked;
+        saveFnSettings();
+    });
+
+    $('btn-fn-start').addEventListener('click', function () { startFnQuiz(null); });
+    $('btn-fn-drill').addEventListener('click', function () {
+        const missed = fnMissedTerms();
+        if (missed.length) startFnQuiz(new Set(missed));
+    });
+
+    $('btn-fn-skip').addEventListener('click', function () { answerFn(null); });
+    $('btn-fn-next').addEventListener('click', nextFnQuestion);
+    $('btn-fn-quit').addEventListener('click', function () {
+        if (fnRun && fnRun.results.length) finishFnQuiz();
+        else { fnRun = null; renderFnSetup(); showView('fnsetup'); }
+    });
+
+    $('btn-fn-retry-missed').addEventListener('click', retryFnMissed);
+    $('btn-fn-retry-all').addEventListener('click', function () { startFnQuiz(null); });
+    $('btn-fn-back').addEventListener('click', function () {
+        fnRun = null;
+        renderFnSetup();
+        showView('fnsetup');
+    });
+
+    /* 1–4 answer, Enter moves on — the quiz is meant to be rattled through. */
+    document.addEventListener('keydown', function (e) {
+        if ($('view-fnrun').hidden || !fnRun) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (/^[1-4]$/.test(e.key)) {
+            if (!fnRun.answered) { e.preventDefault(); answerFn(Number(e.key) - 1); }
+            return;
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+            if (fnRun.answered) { e.preventDefault(); nextFnQuestion(); }
+        }
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════════
    5. BOOT
    ══════════════════════════════════════════════════════════════════ */
 
@@ -2348,6 +2763,7 @@ function boot() {
     mergeSourcedSlides();
     loadState();
     wire();
+    wireFunctionQuiz();
     renderCredits();
     renderWordBank();
     selectSlide(SLIDE_ORDER[0]);

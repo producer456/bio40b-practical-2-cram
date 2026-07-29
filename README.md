@@ -73,6 +73,31 @@ version wins over what ships. Regenerate with:
 python3 tools/import-donor.py
 ```
 
+**Function quiz**
+
+Naming a pinned structure is half of the objectives sheet; the other half asks
+what it *does*. `functions.js` carries **one multiple-choice question for every
+one of the 127 entries on the handout** — 122 questions, since Cilia, Mucosa,
+Lumen and Goblet cells are listed under more than one slide and are asked once.
+
+- Pick which objectives groups to be asked about; lab models and microscope
+  slides are listed separately.
+- Four options, three of them distractors. The distractors are deliberately the
+  *real* functions of the structures you are most likely to confuse it with —
+  the tricuspid question offers you the bicuspid's job, the epiglottis question
+  offers you the glottis. A vague memory does not survive that.
+- Answer with a tap or the **1**–**4** keys; **Enter** moves on.
+- After each answer you get the right one plus a line on how to tell the pair
+  apart, and the results screen lists every miss with the same note.
+- **Drill the ones I keep missing** builds a quiz from your own miss history,
+  which is kept under `bio40b_p2cram_fnmissed`. A term drops off that list once
+  you get it right again.
+
+`tests/functions-test.js` fails the build if any handout term has no question,
+if a question invents a term the professor never listed, or if the correct
+answer is usually the longest option — a quiz you can beat by picking the
+wordiest answer teaches nothing.
+
 **Test mode**
 
 - Pick slides, then Start.
@@ -105,13 +130,15 @@ exact answers.
 ## Layout
 
 ```
-index.html      markup for all four views (build / setup / run / results)
+index.html      markup for every view (build / checklist / cram / functions / test)
 styles.css      the shared BIOL 40B look
 slides.js       the 14 slides: image path, default title, hint
+objectives.js   the professor's Lab Exam 2 checklist, transcribed
+functions.js    one function question per checklist term, with distractors
 preset.js       GENERATED — the built-in pin set
 app.js          logic + UI; the top section is DOM-free and unit-tested
 tools/          key-to-preset.py
-tests/          logic-test.js
+tests/          logic-test.js, functions-test.js
 images/         the lab photos, renamed to stable slugs
 ```
 
@@ -123,10 +150,14 @@ cleanly there.
 
 ```sh
 gjs tests/logic-test.js
+gjs tests/functions-test.js
 ```
 
-Covers answer normalization, synonym and parenthetical handling, typo
-tolerance, the confusable-structure guard, queue building and the clock.
+The first suite covers answer normalization, synonym and parenthetical
+handling, typo tolerance, the confusable-structure guard, queue building and
+the clock. The second checks the function bank against `objectives.js` — full
+coverage, no invented terms, three distinct distractors each, and no
+answer-is-longest tell.
 
 To try it in a browser, serve it locally — **never** test against
 `producer456.github.io`, since that origin holds real saved work for the other
