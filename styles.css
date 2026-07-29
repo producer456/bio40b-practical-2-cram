@@ -1571,3 +1571,90 @@ main { padding: 16px; }
     .fn-option { font-size: 0.9rem; padding: 13px 14px; }
     .fn-start-actions { width: 100%; flex-direction: column-reverse; align-items: stretch; }
 }
+
+/* ═══════════ phones ═══════════
+   Written against capability, not user-agent strings: `max-width` for the
+   layout, and `hover: none`/`pointer: coarse` for "this is a finger", which is
+   also true of this Surface in tablet mode and false again once a keyboard is
+   attached. */
+
+/* Five modes do not fit one 375px row — before this the whole page panned
+   sideways and the last button sat off-screen. Six columns, so three buttons
+   share the first row and two split the second, both rows flush. */
+@media (max-width: 600px) {
+    .header-controls { width: 100%; }
+
+    .mode-toggle {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        width: 100%;
+    }
+
+    .mode-btn {
+        grid-column: span 2;
+        padding: 11px 6px;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+
+    #btn-mode-fn, #btn-mode-test { grid-column: span 3; }
+}
+
+/* The answer bar: inline on a desktop, pinned to the bottom of the screen once
+   you have answered on a phone, so Next is always under your thumb. */
+@media (max-width: 640px) {
+    .fn-panel.answered .fn-answerbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+        background: white;
+        border-top: 1px solid var(--sand-dark);
+        box-shadow: 0 -6px 20px rgba(12, 45, 72, 0.16);
+        max-height: 62vh;
+        max-height: 62dvh;      /* the phone's *visible* height, URL bar included */
+        overflow-y: auto;
+    }
+
+    .fn-panel.answered .fn-answerbar .feedback { margin-bottom: 0; }
+    .fn-panel.answered .fn-answerbar .fn-nav { align-items: stretch; }
+    .fn-panel.answered .fn-answerbar .action-btn { margin-top: 10px; width: 100%; }
+
+    /* Room for the bar, so the last option is never trapped underneath it.
+       app.js replaces this with the bar's measured height; the value here is
+       the fallback if scripting is disabled mid-quiz. */
+    .fn-panel.answered { padding-bottom: 200px; }
+
+    .fn-nav .action-btn { width: 100%; }
+    .mini-btn.skip { width: 100%; text-align: center; }
+}
+
+/* Keyboard-only wording is noise on a touch device. */
+@media (hover: none) and (pointer: coarse) {
+    .fn-hint { display: none; }
+
+    /* 36px is a mouse target; a fingertip wants 44. */
+    .zoom-btn { min-width: 44px; min-height: 44px; }
+    .zoom-controls { gap: 6px; }
+    .mini-btn { min-height: 40px; }
+}
+
+/* Under 16px, iOS Safari zooms the page when a field takes focus and leaves it
+   zoomed there. Every text field on the site is named explicitly: a bare
+   `input[type=...]` selector loses to the class-based rules above it, which is
+   exactly the trap that left two of these at 13px on the first attempt. */
+@media (max-width: 640px) {
+    input[type="text"],
+    input[type="number"],
+    input[type="search"],
+    #slide-title-input,
+    #bank-search,
+    #opt-seconds,
+    #answer-input,
+    .pin-editor {
+        font-size: 16px;
+    }
+}

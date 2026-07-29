@@ -787,6 +787,13 @@ function labelsBySource() {
 
 const $ = function (id) { return document.getElementById(id); };
 
+/* A finger, not a mouse. Used to drop keyboard-only affordances rather than to
+   guess at a device: it is true on a phone and on this Surface in tablet mode,
+   and false the moment a keyboard and trackpad are attached. */
+function isTouchOnly() {
+    return !!(window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches);
+}
+
 let currentSlide = SLIDE_ORDER[0];
 let selectedPinId = null;
 let scale = 1, panX = 0, panY = 0;
@@ -2389,6 +2396,8 @@ function renderFnQuestion() {
         ? right + ' right so far' : '';
 
     $('fn-question').textContent = q.prompt;
+    $('fn-panel').classList.remove('answered');
+    $('fn-panel').style.paddingBottom = '';
     $('fn-feedback').hidden = true;
     $('fn-feedback').textContent = '';
     $('btn-fn-next').hidden = true;
@@ -2454,6 +2463,8 @@ function answerFn(idx) {
     fb.textContent = '';
     fb.className = 'feedback ' + (correct ? 'right' : 'wrong');
     fb.hidden = false;
+    $('fn-panel').classList.add('answered');
+    reserveRoomForAnswerBar();
 
     const head = document.createElement('b');
     head.textContent = correct ? 'Right.' : (picked ? 'Not quite.' : 'Skipped.');
@@ -2476,7 +2487,23 @@ function answerFn(idx) {
     const next = $('btn-fn-next');
     next.hidden = false;
     next.textContent = (fnRun.i + 1 >= fnRun.queue.length) ? 'See results' : 'Next';
-    next.focus();
+    if (!isTouchOnly()) next.focus();
+}
+
+/* On a phone the answer bar is pinned to the bottom of the screen, so the
+   panel needs exactly its height as clearance — a fixed guess either traps the
+   last option underneath or leaves a dead gap, and the bar's height depends on
+   how long the explanation is. Off phones the bar is inline and this is a
+   no-op. */
+function reserveRoomForAnswerBar() {
+    const panel = $('fn-panel');
+    const bar = $('fn-answerbar');
+    if (!panel || !bar) return;
+    if (getComputedStyle(bar).position !== 'fixed') {
+        panel.style.paddingBottom = '';
+        return;
+    }
+    panel.style.paddingBottom = (bar.getBoundingClientRect().height + 18) + 'px';
 }
 
 function nextFnQuestion() {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BIOL 40B — Practical 2: Cram Trainer</title>
-    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
     <header>
@@ -249,13 +249,19 @@
         </div>
 
         <main>
-            <div class="panel fn-panel">
+            <div class="panel fn-panel" id="fn-panel">
                 <p class="fn-question" id="fn-question"></p>
                 <div class="fn-options" id="fn-options"></div>
-                <div class="feedback" id="fn-feedback" hidden></div>
-                <div class="fn-nav">
-                    <button class="action-btn submit-btn" type="button" id="btn-fn-next" hidden>Next</button>
-                    <button class="mini-btn skip" type="button" id="btn-fn-skip">Don't know — skip</button>
+
+                <!-- Once you have answered, this whole block becomes a bar pinned to
+                     the bottom of a phone screen — four options fill a phone, so
+                     otherwise every question costs a scroll to reach Next. -->
+                <div class="fn-answerbar" id="fn-answerbar">
+                    <div class="feedback" id="fn-feedback" hidden></div>
+                    <div class="fn-nav">
+                        <button class="action-btn submit-btn" type="button" id="btn-fn-next" hidden>Next</button>
+                        <button class="mini-btn skip" type="button" id="btn-fn-skip">Don't know — skip</button>
+                    </div>
                 </div>
                 <p class="fn-hint">Tap an answer, or press <b>1</b>–<b>4</b>. <b>Enter</b> moves on.</p>
             </div>
@@ -408,6 +414,6 @@
     <script src="functions.js?v=1"></script>
     <script src="likelihood.js?v=1"></script>
     <script src="preset.js?v=1"></script>
-    <script src="app.js?v=8"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>
